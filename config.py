@@ -1,20 +1,9 @@
-# ================================================================
-#  НАСТРОЙКИ БОТА — заполните перед запуском
-# ================================================================
+import os
 
-# 1. Токен вашего Telegram-бота (получить у @BotFather)
-BOT_TOKEN = "8839897425:AAHx6W0UglXZvmPcgBmiv84V1ye3DmClvkI"
+BOT_TOKEN = os.environ.get('BOT_TOKEN', '8839897425:AAHx6W0UglXZvmPcgBmiv84V1ye3DmClvkI')
+SPREADSHEET_ID = os.environ.get('SPREADSHEET_ID', '1-sa9EkP1-T_MVcHS00Z-yD3Dzek_ABYhpbmDkb6M1PE')
+CREDENTIALS_FILE = 'credentials.json'
 
-# 2. ID вашей Google Таблицы
-#    Это часть URL: docs.google.com/spreadsheets/d/ВОТ_ЭТО/edit
-SPREADSHEET_ID = "8839897425:AAHx6W0UglXZvmPcgBmiv84V1ye3DmClvkI"
-
-# 3. Путь к файлу credentials (скачать из Google Cloud Console)
-CREDENTIALS_FILE = "credentials.json"
-
-# ================================================================
-#  РАЙОНЫ ТАШКЕНТА — можно добавить свои
-# ================================================================
 DISTRICTS = [
     "Юнусабад",
     "Мирзо-Улугбек",
