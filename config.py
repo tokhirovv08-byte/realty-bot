@@ -3,11 +3,11 @@
 # ================================================================
 
 # 1. Токен вашего Telegram-бота (получить у @BotFather)
-BOT_TOKEN = "ВСТАВЬТЕ_ТОКЕН_БОТА_СЮДА"
+BOT_TOKEN = "8839897425:AAHx6W0UglXZvmPcgBmiv84V1ye3DmClvkI"
 
 # 2. ID вашей Google Таблицы
 #    Это часть URL: docs.google.com/spreadsheets/d/ВОТ_ЭТО/edit
-SPREADSHEET_ID = "ВСТАВЬТЕ_ID_ТАБЛИЦЫ_СЮДА"
+SPREADSHEET_ID = "8839897425:AAHx6W0UglXZvmPcgBmiv84V1ye3DmClvkI"
 
 # 3. Путь к файлу credentials (скачать из Google Cloud Console)
 CREDENTIALS_FILE = "credentials.json"
