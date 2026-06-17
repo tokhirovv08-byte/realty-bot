@@ -1,6 +1,9 @@
+import os
+import json
+import tempfile
 import gspread
 from google.oauth2.service_account import Credentials
-from config import SPREADSHEET_ID, CREDENTIALS_FILE
+from config import SPREADSHEET_ID
 
 SCOPES = [
     'https://www.googleapis.com/auth/spreadsheets',
@@ -9,28 +12,39 @@ SCOPES = [
 
 HEADERS = ['ID', 'Район', 'Локация', 'Площадь (м²)', 'Комнат',
            'Этаж', 'Этажей в подъезде', 'Этажей в доме',
-           'Мебель/техника', 'Ремонт', 'Цена ($)', 'Контакт', 'Фото']
+           'Мебель/техника', 'Ремонт', 'Цена ($)', 'Контакт',
+           'Имя собственника', 'Телефон собственника', 'Фото']
 
 
 class SheetsManager:
     def __init__(self):
         try:
-            creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
+            # Читаем credentials из переменной окружения (для Railway)
+            # или из файла (для локального запуска)
+            google_creds_json = os.environ.get('GOOGLE_CREDENTIALS')
+
+            if google_creds_json:
+                # Railway: из переменной окружения
+                creds_dict = json.loads(google_creds_json)
+                creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+            else:
+                # Локально: из файла credentials.json
+                creds = Credentials.from_service_account_file('credentials.json', scopes=SCOPES)
+
             self.client = gspread.authorize(creds)
             self.sheet = self.client.open_by_key(SPREADSHEET_ID).sheet1
             self._ensure_headers()
+            print("✅ Подключение к Google Sheets успешно!")
         except Exception as e:
             print(f"❌ Ошибка подключения к Google Sheets: {e}")
             self.sheet = None
 
     def _ensure_headers(self):
-        """Создаёт заголовки если их нет."""
         try:
             first_row = self.sheet.row_values(1)
             if not first_row or first_row[0] != 'ID':
                 self.sheet.insert_row(HEADERS, 1)
-                # Форматирование заголовков
-                self.sheet.format('A1:M1', {
+                self.sheet.format('A1:O1', {
                     'backgroundColor': {'red': 0.2, 'green': 0.5, 'blue': 0.9},
                     'textFormat': {'bold': True, 'foregroundColor': {'red': 1, 'green': 1, 'blue': 1}},
                     'horizontalAlignment': 'CENTER'
@@ -39,18 +53,16 @@ class SheetsManager:
             print(f"Ошибка при создании заголовков: {e}")
 
     def _get_next_id(self):
-        """Возвращает следующий ID."""
         try:
-            all_ids = self.sheet.col_values(1)[1:]  # пропускаем заголовок
+            all_ids = self.sheet.col_values(1)[1:]
             if not all_ids:
                 return 1
-            numeric_ids = [int(x) for x in all_ids if x.isdigit()]
+            numeric_ids = [int(x) for x in all_ids if str(x).isdigit()]
             return max(numeric_ids) + 1 if numeric_ids else 1
         except Exception:
             return 1
 
     def add_apartment(self, apt: dict) -> int:
-        """Добавляет квартиру в таблицу."""
         if not self.sheet:
             return -1
         apt_id = self._get_next_id()
@@ -67,13 +79,14 @@ class SheetsManager:
             apt.get('renovation', ''),
             apt.get('price', ''),
             apt.get('contact', ''),
+            apt.get('owner_name', ''),
+            apt.get('owner_phone', ''),
             apt.get('photos', ''),
         ]
         self.sheet.append_row(row, value_input_option='USER_ENTERED')
         return apt_id
 
     def get_all_apartments(self) -> list:
-        """Возвращает все квартиры."""
         if not self.sheet:
             return []
         try:
@@ -84,24 +97,14 @@ class SheetsManager:
             return []
 
     def search_apartments(self, filters: dict) -> list:
-        """Ищет квартиры по фильтрам."""
         all_apts = self.get_all_apartments()
-        results = []
-
-        for apt in all_apts:
-            if not self._matches(apt, filters):
-                continue
-            results.append(apt)
-
-        return results
+        return [apt for apt in all_apts if self._matches(apt, filters)]
 
     def _matches(self, apt: dict, filters: dict) -> bool:
-        # Район
         district = filters.get('district')
         if district and district.lower() not in apt.get('district', '').lower():
             return False
 
-        # Мин цена
         price_min = filters.get('price_min')
         if price_min is not None:
             try:
@@ -110,7 +113,6 @@ class SheetsManager:
             except (ValueError, TypeError):
                 pass
 
-        # Макс цена
         price_max = filters.get('price_max')
         if price_max is not None:
             try:
@@ -119,7 +121,6 @@ class SheetsManager:
             except (ValueError, TypeError):
                 pass
 
-        # Комнаты
         rooms = filters.get('rooms')
         if rooms:
             if rooms == '4':
@@ -132,7 +133,6 @@ class SheetsManager:
                 if str(apt.get('rooms', '')) != str(rooms):
                     return False
 
-        # Мебель
         furniture = filters.get('furniture')
         if furniture == 'да':
             if 'мебель' not in apt.get('furniture', '').lower():
@@ -141,7 +141,6 @@ class SheetsManager:
             if 'мебель' in apt.get('furniture', '').lower():
                 return False
 
-        # Ремонт
         renovation = filters.get('renovation')
         if renovation:
             if renovation.lower() not in apt.get('renovation', '').lower():
@@ -163,5 +162,7 @@ class SheetsManager:
             'renovation': record.get('Ремонт', ''),
             'price': record.get('Цена ($)', ''),
             'contact': record.get('Контакт', ''),
+            'owner_name': record.get('Имя собственника', ''),
+            'owner_phone': record.get('Телефон собственника', ''),
             'photos': record.get('Фото', ''),
         }
